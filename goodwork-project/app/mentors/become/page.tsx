@@ -2,11 +2,67 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Check, Heart, MapPin, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Heart, MapPin } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+  return name.trim().slice(0, 2).toUpperCase()
+}
+
 export default function BecomeMentorPage() {
-  const [submitted, setSubmitted] = useState(false)
+  const [name, setName] = useState('')
+  const [job, setJob] = useState('')
+  const [location, setLocation] = useState('')
+  const [skill, setSkill] = useState('')
+  const [contact, setContact] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || loading) return
+
+    setLoading(true)
+
+    const colors = ['coral', 'blue', 'purple']
+    const randomColor = colors[Math.floor(Math.random() * colors.length)]
+
+    const newMentor = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      job: job.trim() || 'Mentor',
+      location: location.trim(),
+      skill: skill.trim() || 'Practical Skills & Advice',
+      color: randomColor,
+      initials: getInitials(name),
+      isNew: true,
+    }
+
+    try {
+      // 1. 서버 API로 저장
+      await fetch('/api/mentors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMentor),
+      })
+    } catch (err) {
+      console.error('API save failed', err)
+    }
+
+    try {
+      // 2. 브라우저 저장소 백업
+      const existing = JSON.parse(localStorage.getItem('goodwork_mentors') || '[]')
+      localStorage.setItem('goodwork_mentors', JSON.stringify([newMentor, ...existing]))
+    } catch {
+      // ignore
+    }
+
+    // 3. 브라우저 새로고침 방식으로 멘토 리스트 페이지로 즉시 이동!
+    window.location.href = '/mentors'
+  }
 
   return (
     <>
@@ -30,60 +86,67 @@ export default function BecomeMentorPage() {
           </div>
         </div>
 
-        <form
-          className="profile-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setSubmitted(true)
-          }}
-        >
+        <form className="profile-form" onSubmit={handleSubmit}>
           <label>
-            Full Name
-            <input required placeholder="e.g. Maya Chen" />
-          </label>
-
-          <label>
-            What is your current trade or job?
-            <input required placeholder="e.g. Urban Farmer, Electrician, Store Manager" />
-          </label>
-
-          <label>
-            Where are you based?
-            <div className="input-icon">
-              <MapPin size={16} />
-              <input required placeholder="Neighborhood or city" />
-            </div>
-          </label>
-
-          <label>
-            What skill or topic would you like to teach?
-            <textarea
+            Full Name *
+            <input
               required
-              rows={4}
-              placeholder="e.g. Tool safety basics, resume reviews, customer service confidence, bike repair..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Jordan Lee"
             />
           </label>
 
           <label>
-            Email or Phone (so we can reach out)
-            <input type="text" required placeholder="email@example.com or phone number" />
+            Trade or Job Title *
+            <input
+              required
+              value={job}
+              onChange={(e) => setJob(e.target.value)}
+              placeholder="e.g. Web Developer, Electrician, Bike Mechanic"
+            />
           </label>
 
-          <button className="primary-button" type="submit">
-            {submitted ? (
+          <label>
+            Location (City or Neighborhood)
+            <div className="input-icon">
+              <MapPin size={16} />
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Riverside, Downtown"
+              />
+            </div>
+          </label>
+
+          <label>
+            Skills or Topic You Teach *
+            <textarea
+              required
+              rows={4}
+              value={skill}
+              onChange={(e) => setSkill(e.target.value)}
+              placeholder="e.g. Coding basics, resume building, carpentry skills..."
+            />
+          </label>
+
+          <label>
+            Contact Email or Phone (Optional)
+            <input
+              type="text"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="email@example.com or phone number"
+            />
+          </label>
+
+          <button className="primary-button" type="submit" disabled={loading} style={{ cursor: 'pointer' }}>
+            {loading ? 'Adding to mentor list...' : (
               <>
-                <Check size={18} /> Application submitted!
+                Register &amp; View in Mentor List <ArrowRight size={17} />
               </>
-            ) : (
-              'Submit mentor application'
             )}
           </button>
-
-          {submitted && (
-            <p className="success-message" role="status">
-              Thank you for stepping up! Our community coordinator will reach out within 2–3 business days.
-            </p>
-          )}
         </form>
       </main>
     </>
